@@ -18,9 +18,9 @@ class DetectionLayer(nn.Module):
         self.anchors = anchors
 
 class Darknet(nn.Module):
-    def __init__(self):
+    def __init__(self,cfg_path):
         super(Darknet,self).__init__()
-        self.blocks = parse_cfg('cfg/yolov3.cfg')
+        self.blocks = parse_cfg(cfg_path)
         self.net_info , self.module_list = create_modules(self.blocks)
 
     def forward(self,x,CUDA):
@@ -146,7 +146,7 @@ class Darknet(nn.Module):
 
 
 def get_test_input():
-    img = cv2.imread("dog-cycle-car.png")
+    img = cv2.imread("images/dog-cycle-car.png")
     img = cv2.resize(img, (416,416))          #Resize to the input dimension
     img_ =  img[:,:,::-1].transpose((2,0,1))  # BGR -> RGB | H X W C -> C X H X W
     img_ = img_[np.newaxis,:,:,:]/255.0       #Add a channel at 0 (for batch) | Normalise
