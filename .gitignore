@@ -1,2 +1,5 @@
 .idea/
 cfg/yolov3.weights
+__pycache__/
+data/*
+data/

@@ -155,8 +155,6 @@ def get_test_input():
     return img_
 
 
-
-
 def parse_cfg(cfgfile):
     """
     解析CFG
@@ -275,3 +273,6 @@ def create_modules(blocks):
 if __name__ == '__main__':
     model = Darknet()
     model.load_weights("cfg/yolov3.weights")
+    inp = get_test_input()
+    pred = model(inp,torch.cuda.is_available())
+    write_results(pred,0.5,80)
