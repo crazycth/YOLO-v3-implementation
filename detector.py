@@ -69,6 +69,7 @@ if __name__ == '__main__':
     except NotADirectoryError:
         imlist = []
         imlist.append(os.path.join(os.path.realpath('.'),images))
+        # print(imlist)
     except FileNotFoundError:
         print("No file or directory with the same {}".format(images))
         exit()
@@ -78,13 +79,13 @@ if __name__ == '__main__':
 
     load_batch = time.time()
     load_imgs = [cv2.imread(x) for x in imlist]
+    assert len(load_imgs) >= 1
 
     im_batches = list(map(prep_image,load_imgs,[inp_dim for x in range(len(imlist))]))
 
     im_dim_list = [(x.shape[1],x.shape[0]) for x in load_imgs]
-    # print(im_dim_list)
+
     im_dim_list = torch.FloatTensor(im_dim_list).repeat(1,2)
-    # print(im_dim_list)
 
     leftover = 0
     if (len(im_dim_list)%batch_size):
@@ -105,8 +106,9 @@ if __name__ == '__main__':
             prediction = model(Variable(batch),CUDA)
             # print(prediction.shape) [1,10647,85]
             prediction = write_results(prediction,confidence,num_classes,nms_conf=nms_threash)
-            # print(prediction.shape) [3,8]
-            ##左上角X，左上角Y，右下角X，右下角Y，conf, 分类最大置信度分数，最大置信度坐标
+            print(prediction.shape)
+            # [3,8]
+            # 哪一张图片 左上角X，左上角Y，右下角X，右下角Y conf 最大置信度类别的分数 最大置信度类别索引 共8个 叠加在一起
             # print(prediction)
 
         end = time.time()
@@ -130,9 +132,12 @@ if __name__ == '__main__':
 
         for im_num, image in enumerate(imlist[i * batch_size: min((i + 1) * batch_size, len(imlist))]):
             im_id = i * batch_size + im_num
+            #对于这张图片(im_id)，预测出的所有框的最大置信度类别索引对应的名字
             objs = [classes[int(x[-1])] for x in output if int(x[0]) == im_id]
+            scores = [str(float(x[-2]))[:6] for x in output if int(x[0]) == im_id ]
             print("{0:20s} predicted in {1:6.3f} seconds".format(image.split("/")[-1], (end - start) / batch_size))
             print("{0:20s} {1:s}".format("Objects Detected:", " ".join(objs)))
+            print("{0:20s} {1:s}".format("Objects Score:"," ".join(scores)))
             print("----------------------------------------------------------")
 
         if CUDA:
@@ -144,9 +149,14 @@ if __name__ == '__main__':
         print("No detections were made")
         exit()
 
+    # print(im_dim_list.shape)
     im_dim_list = torch.index_select(im_dim_list,0,output[:,0].long())
+    # print(im_dim_list.shape)
     scaling_factor = torch.min(inp_dim/im_dim_list,1)[0].view(-1,1)
 
+    # print("s:",scaling_factor)
+
+    # 哪一张图片 左上角X，左上角Y，右下角X，右下角Y conf 最大置信度类别的分数 最大置信度类别索引 共8个 叠加在一起
     output[:, [1, 3]] -= (inp_dim - scaling_factor * im_dim_list[:, 0].view(-1, 1)) / 2
     output[:, [2, 4]] -= (inp_dim - scaling_factor * im_dim_list[:, 1].view(-1, 1)) / 2
 
@@ -162,17 +172,24 @@ if __name__ == '__main__':
 
     draw = time.time()
 
-
+    # 哪一张图片 左上角X，左上角Y，右下角X，右下角Y conf 最大置信度类别的分数 最大置信度类别索引 共8个 叠加在一起
+    # 把每个框单独调用write进行绘图，但传入的reults是整体的load_imgs
     def write(x, results):
         c1 = tuple(x[1:3].int())
         c2 = tuple(x[3:5].int())
+        #d1是左上角
         d1 = (int(c1[0]), int(c1[1]))
+        #d2是右下角
         d2 = (int(c2[0]), int(c2[1]))
+
+        #在此选出了当前框对应的图片
         img = results[int(x[0])]
         cls = int(x[-1])
+        score = str(float(x[-2]))[:4]
+        # print(classes[cls],score)
         color = random.choice(colors)
-        label = "{0}".format(classes[cls])
-        cv2.rectangle(img, d1, d2, color, 1)
+        label = "{0} {1}".format(classes[cls],score)
+        cv2.rectangle(img, d1, d2, color, 3)
         t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
         c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
         d2 = (int(c2[0]), int(c2[1]))
@@ -180,6 +197,8 @@ if __name__ == '__main__':
         cv2.putText(img, label, (int(c1[0]), int(c1[1] + t_size[1] + 4)), cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1)
         return img
 
+
+    #在此一共两张图片
     list(map(lambda x: write(x, load_imgs), output))
 
     det_names = pd.Series(imlist).apply(lambda x: "{}/det_{}".format(args.det, x.split("/")[-1]))

@@ -4,3 +4,5 @@ __pycache__/
 data/*
 data/
 det/*
+det/*
+.DS_S*
