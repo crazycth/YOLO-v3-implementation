@@ -126,7 +126,7 @@ if __name__ == '__main__':
             output = prediction
             write = 1
         else:
-            output = output.cat((output,prediction))
+            output = torch.cat((output,prediction))
 
         for im_num, image in enumerate(imlist[i * batch_size: min((i + 1) * batch_size, len(imlist))]):
             im_id = i * batch_size + im_num

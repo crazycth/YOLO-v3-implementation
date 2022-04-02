@@ -190,9 +190,6 @@ def write_results(prediction,confidence,num_classes,nms_conf=0.4):
             else:
                 out = torch.cat(seq,1)
                 output = torch.cat((output,out))
-
-            # print(output.shape)
-
     try:
         return output
 
